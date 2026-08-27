@@ -34,6 +34,10 @@ for(const def of T.TRACKS){
     if(diff==='easy') check(arcs.length===0, def.id+'/easy 不应有 90° 弧');
     else check(arcs.length>0, def.id+'/'+diff+' 应有 90° 弧');
     check(arcs.every(n=>Math.abs((n.a1-n.a0)-90)<1e-6), def.id+'/'+diff+' 弧应跨 90°');
+    const slides=notes.filter(n=>n.type==='slide');
+    if(diff==='easy') check(slides.length===0, def.id+'/easy 不应有滑键');
+    else check(slides.length>0, def.id+'/'+diff+' 应有滑键');
+    check(slides.every(n=>n.dir===1||n.dir===-1), def.id+'/'+diff+' 滑键方向应为顺/逆时针');
     // hold 期间不应有其他音符（可打性）
     for(const h of notes.filter(n=>n.type==='hold')){
       const clash=notes.some(n=>n!==h && n.type!=='kick' && n.t>=h.t-1e-6 && n.t<h.t2-1e-6);
@@ -76,6 +80,14 @@ T.setupArc(); check(T.rotateArcTest(3,-1,-0.25)===false, '端点按键过早（�
 T.setupArc(); check(T.swipeArcTest(270,-1,-0.02,0)===true, '从左端点逆时针滑应命中');
 T.setupArc(); check(T.swipeArcTest(0,1,-0.02,0)===true, '从上端点顺时针滑应命中');
 T.setupArc(); check(T.swipeArcTest(270,1,-0.02,0)===false, '从左端点顺时针滑（错误方向）不应命中');
+
+// 滑键：向指定方向旋转即命中（方向不能自选）
+T.setupSlide(); check(T.rotateSlideTest(1,-0.05)===true, '按 → 顺时针应命中顺滑键');
+T.setupSlide(); check(T.rotateSlideTest(-1,-0.05)===false, '按 ← 逆时针（错误方向）不应命中顺滑键');
+T.setupSlide(); check(T.rotateSlideTest(1,-0.3)===false, '旋转过早不应命中滑键');
+T.setupSlide(); check(T.swipeSlideTest(1,-0.02,0)===true, '顺时针滑应命中顺滑键');
+T.setupSlide(); check(T.swipeSlideTest(-1,-0.02,0)===false, '逆时针滑不应命中顺滑键');
+T.setupSlide(); check(T.swipeSlideTest(1,-0.02,0.8)===false, '滑动持续过久不应命中滑键');
 
 // hold 长按：起点命中、提前松开结束、按住到结束完成
 T.holdSetup(0.02,1.5);

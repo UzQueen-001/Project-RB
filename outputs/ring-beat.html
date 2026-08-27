@@ -89,6 +89,7 @@ input[type=range]{width:150px;accent-color:var(--accent);}
   <div class="ctrl-hint">
     45° 弧：落到对应方向时按 <b>W/A/S/D</b>（触屏点对应位置）<br>
     90° 斜弧：<b>按住/点到弧的一个端点，并向正确方向旋转 90°</b>（如左上弧：按 A 逆时针，或按 W 顺时针）<br>
+    滑键：<b>弧带方向箭头，落线时向箭头方向旋转</b>（← / → 或滑动；方向由谱面指定）<br>
     长按弧：<b>按住方向键直到弧消失</b>（HOLD ✓）；长按只出现在上下左右，不与 90° 弧同刻<br>
     电脑端 <b>← / → 方向键</b>也可旋转 90° · 谱面方向锁在圆环上，按键永远锁在屏幕方向 · <b>P</b> 暂停
   </div>
@@ -150,11 +151,11 @@ const FONT='"SF Pro Display","PingFang SC","Microsoft YaHei",sans-serif';
 
 /* ================= 曲目 ================= */
 const TRACKS=[
-  {id:'neon',name:'NEON SKY',genre:'电子 / EDM',bpm:124,duration:58,seed:42,color:'#00e5ff',color2:'#ff2d95',
+  {id:'neon',name:'NEON SKY',genre:'电子 / EDM',bpm:124,duration:58,seed:42,color:'#00e5ff',color2:'#ff2d95',color3:'#b18cff',
    chords:[[57,60,64],[53,57,60],[60,64,67],[55,59,62]],bassOffset:-12,leadBoost:0,arp:[0,1,2,1,0,2,1,0,2,1,0,1,2,1,0,2]},
-  {id:'drive',name:'MIDNIGHT DRIVE',genre:'合成器浪潮 / Synthwave',bpm:92,duration:66,seed:7,color:'#ff5ea8',color2:'#5b8cff',
+  {id:'drive',name:'MIDNIGHT DRIVE',genre:'合成器浪潮 / Synthwave',bpm:92,duration:66,seed:7,color:'#ff5ea8',color2:'#5b8cff',color3:'#00e5a0',
    chords:[[48,51,55],[44,48,52],[39,43,46],[46,50,53]],bassOffset:0,leadBoost:12,arp:[0,2,1,2,0,1,2,1]},
-  {id:'pop',name:'HYPER POP',genre:'流行 / Pop',bpm:140,duration:60,seed:21,color:'#ffd166',color2:'#06d6a0',
+  {id:'pop',name:'HYPER POP',genre:'流行 / Pop',bpm:140,duration:60,seed:21,color:'#ffd166',color2:'#06d6a0',color3:'#ff8fab',
    chords:[[53,57,60],[50,54,57],[58,62,65],[60,64,67]],bassOffset:-12,leadBoost:0,arp:[0,1,2,1,0,2,1,2,0,1,2,1,2,0,1,0]}
 ];
 const DIFF_LABEL={easy:'轻松',normal:'普通',hard:'困难'};
@@ -164,7 +165,8 @@ const KEY_LABELS=['W','D','S','A'];
 
 /* ================= 谱面：环形弧线音符 =================
    方向编号（谱面空间，锁在圆环上）：0=上 1=右 2=下 3=左，角度=编号*90°（顺时针）。
-   45° 弧 = 点按；90° 弧 = 跨两个相邻方向，需在圆环上滑动 90°（端点任选、顺逆自选）。 */
+   45° 弧 = 点按；90° 弧 = 跨两个相邻方向，需在圆环上滑动 90°（端点任选、顺逆自选）；
+   滑键 = 45° 弧带方向箭头，向指定方向旋转（顺/逆由谱面指定，不能自选）。 */
 function buildPattern(bpm,duration,diff,seed){
   const salt=diff==='easy'?1:diff==='normal'?2:3;
   const rnd=mulberry32((seed*2654435761+salt)>>>0);
@@ -172,7 +174,7 @@ function buildPattern(bpm,duration,diff,seed){
   const maxT=duration-0.05;
   const notes=[];
   let t=0;
-  let holdUntil=-1; // hold 持续期间不生成 90° 弧 / 第二个 hold / 八分插音
+  let holdUntil=-1; // hold 持续期间不生成 90° 弧 / 滑键 / 第二个 hold / 八分插音
   let holdDir=-1;   // 最近一个 hold 的方向（用于尾部规则）
   while(t<maxT){
     if(t<holdUntil-1e-4){
@@ -189,6 +191,9 @@ function buildPattern(bpm,duration,diff,seed){
       const a0=[0,90,180,270][q];
       const a1=[90,180,270,360][q];
       n={t:t,type:'arc',a0:a0,a1:a1};
+    }else if(notes.length>0 && t>=holdUntil && diff!=='easy' && rnd()<(diff==='normal'?0.10:0.13)){
+      // 滑键：向指定方向旋转一次（方向由箭头指定，玩家不能自选）
+      n={t:t,type:'slide',d:Math.floor(rnd()*4),dir:rnd()<0.5?-1:1};
     }else if(notes.length>0 && t>=holdUntil && rnd()<(diff==='easy'?0.10:diff==='normal'?0.18:0.20)){
       const d=notes.length===0? 0 : Math.floor(rnd()*4);
       const beats=diff==='easy'?1 : (rnd()<0.5?1:2);
@@ -662,7 +667,7 @@ function rotateChart(dir){
   game.rotAnim={from:from,to:to,t:0,dur:0.18};
   game.shake=Math.max(game.shake,2);
   game.flash={t:0,color:'rgba(170,225,255,0.10)'};
-  checkArcRotate(dir,gt,before);
+  if(!checkArcRotate(dir,gt,before)) checkSlideRotate(dir,gt);
 }
 function evPos(e){
   const r=canvas.getBoundingClientRect();
@@ -712,10 +717,11 @@ canvas.addEventListener('pointerup',e=>{
     if(committed){
       const dir=d.delta>0?1:-1;
       const hitArc=checkArcSwipe(dir,d.startA,d.baseRot,gt,d.startT);
+      const hitSlide=!hitArc&&checkSlideSwipe(dir,gt,d.startT);
       const to=norm(d.baseRot+dir*90);
       game.chartRot=to;
       game.rotAnim={from:from,to:to,t:0,dur:0.18};
-      if(!hitArc){ game.tooEarlyFlash=1; }
+      if(!hitArc&&!hitSlide){ game.tooEarlyFlash=1; }
       game.shake=Math.max(game.shake,2);
     }else{
       const to=norm(d.baseRot);
@@ -744,7 +750,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game.stat
 
 /* ================= 判定 ================= */
 function hit(n,bestD,gt){
-  const W=n.type==='arc'? game.arcWindows : game.windows;
+  const W=(n.type==='arc'||n.type==='slide')? game.arcWindows : game.windows;
   const judge=bestD<=W.perfect?'perfect':bestD<=W.great?'great':'good';
   game[judge]++;
   game.combo++;
@@ -753,14 +759,14 @@ function hit(n,bestD,gt){
   game.score+={perfect:100,great:70,good:40}[judge]*mult;
   const rot=chartRotLive();
   let pos;
-  if(n.type==='tap'){
+  if(n.type==='tap'||n.type==='slide'){
     pos=ptOnRing(norm(n.d*90+rot),RING);
   }else{
     pos=ptOnRing(norm((n.a0+n.a1)/2+rot),RING);
   }
   game.notes.splice(game.notes.indexOf(n),1);
   spawnJudgment(JUDGE_TEXT[judge],JUDGE_COLORS[judge],pos.x,pos.y);
-  spawnHitParticles(pos.x,pos.y,TRACKS[game.trackIdx].color,n.type==='arc');
+  spawnHitParticles(pos.x,pos.y,TRACKS[game.trackIdx].color,n.type==='arc'||n.type==='slide');
   comboPop();
   playHitTick();
   if(game.combo>0&&game.combo%20===0){
@@ -888,6 +894,37 @@ function checkArcSwipe(dir,startA,baseRot,gt,startT){
   return false;
 }
 
+/* 滑键判定：向指定方向旋转一次即可命中（方向由谱面指定，无端点要求）。
+   桌面：← / → 触发 rotateChart → checkSlideRotate；滑动：checkSlideSwipe。 */
+function checkSlideRotate(dir,gt){
+  const w=game.arcWindows.good;
+  let best=null,bestErr=1e9;
+  for(let i=game.q;i<game.notes.length;i++){
+    const n=game.notes[i];
+    if(n.t-gt>w) break;
+    if(n.type!=='slide' || n.dir!==dir) continue;
+    const err=Math.abs(gt-n.t);
+    if(err<=w && err<bestErr){ best=n; bestErr=err; }
+  }
+  if(best){ hit(best,bestErr,gt); return true; }
+  return false;
+}
+function checkSlideSwipe(dir,gt,startT){
+  const w=game.arcWindows.good;
+  if(gt-startT>0.7) return false;
+  let best=null,bestErr=1e9;
+  for(let i=game.q;i<game.notes.length;i++){
+    const n=game.notes[i];
+    if(n.t-gt>w) break;
+    if(n.type!=='slide' || n.dir!==dir) continue;
+    if(startT>n.t+w || gt<n.t-w) continue;
+    const err=Math.min(Math.abs(startT-n.t),Math.abs(gt-n.t));
+    if(err<bestErr){ best=n; bestErr=err; }
+  }
+  if(best){ hit(best,bestErr,gt); return true; }
+  return false;
+}
+
 function spawnJudgment(text,color,px,py){ game.judgments.push({t:0,text,color,px,py}); }
 function spawnHitParticles(x,y,col,big){
   const cnt=big?30:20;
@@ -962,12 +999,12 @@ function update(now){
     }
     while(game.q<game.notes.length){
       const n=game.notes[game.q];
-      const wMiss=n.type==='arc'? game.arcWindows.good : game.windows.good;
+      const wMiss=(n.type==='arc'||n.type==='slide')? game.arcWindows.good : game.windows.good;
       if(n.t>=gt-wMiss) break;
       game.miss++;
       game.combo=0;
       const rot=chartRotLive();
-      const pos=ptOnRing(n.type==='tap'?norm(n.d*90+rot):norm((n.a0+n.a1)/2+rot),RING);
+      const pos=ptOnRing((n.type==='tap'||n.type==='slide')?norm(n.d*90+rot):norm((n.a0+n.a1)/2+rot),RING);
       game.q++;
       spawnJudgment(JUDGE_TEXT.miss,JUDGE_COLORS.miss,pos.x,pos.y);
       spawnMissBurst(pos.x,pos.y);
@@ -1119,6 +1156,32 @@ function drawNotes(ctx){
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.shadowBlur=0;
+    }else if(n.type==='slide'){
+      // 滑键：45° 弧 + 方向箭头（顺/逆时针由谱面指定）
+      const a=screenAngleOfDir(n.d);
+      const lcol=TRACKS[game.trackIdx].color3;
+      ctx.strokeStyle=hexToRgba(lcol,alpha);
+      ctx.lineWidth=10;
+      ctx.lineCap='round';
+      ctx.shadowColor=lcol;
+      ctx.shadowBlur=14*s;
+      ctx.beginPath();
+      ctx.arc(CX,CY,r,(a-90-22.5)*D2R,(a-90+22.5)*D2R);
+      ctx.stroke();
+      ctx.shadowBlur=0;
+      const lead=(a-90+(n.dir>0?22.5:-22.5))*D2R;
+      const tip={x:CX+Math.cos(lead)*r,y:CY+Math.sin(lead)*r};
+      const backA=lead-(n.dir>0?28:-28)*D2R;
+      const back={x:CX+Math.cos(backA)*r*0.76,y:CY+Math.sin(backA)*r*0.76};
+      const perpA=lead-(n.dir>0?90:-90)*D2R;
+      const off=9;
+      ctx.fillStyle=hexToRgba(lcol,alpha);
+      ctx.beginPath();
+      ctx.moveTo(tip.x,tip.y);
+      ctx.lineTo(back.x+Math.cos(perpA)*off,back.y+Math.sin(perpA)*off);
+      ctx.lineTo(back.x-Math.cos(perpA)*off,back.y-Math.sin(perpA)*off);
+      ctx.closePath();
+      ctx.fill();
     }else{
       const as=arcScreen(n);
       ctx.strokeStyle=hexToRgba(TRACKS[game.trackIdx].color2,alpha);
@@ -1200,7 +1263,7 @@ function drawTexts(ctx){
   }
   if(game.tooEarlyFlash>0&&game.q<game.notes.length){
     const n=game.notes[game.q];
-    const a=screenAngleOfDir(n.type==='tap'?n.d:0);
+    const a=screenAngleOfDir((n.type==='tap'||n.type==='slide')?n.d:0);
     const p=ptOnRing(a,RING);
     ctx.globalAlpha=game.tooEarlyFlash;
     ctx.font='700 14px '+FONT;
@@ -1302,6 +1365,23 @@ if(window.__RING_TEST__){
     swipeArcTest:(startA,dir,startOff,endOff)=>{
       const now=game.__ringNow;
       return checkArcSwipe(dir,startA,0,now+endOff,now+startOff);
+    },
+    setupSlide:()=>{
+      const now=gameClock.now();
+      game.arcWindows={perfect:.06,great:.12,good:.26};
+      game.notes=[{t:now+0.02,type:'slide',d:0,dir:1}];
+      game.q=0;game.chartRot=0;game.rotAnim=null;
+      game.lastPress=[-99,-99,-99,-99];
+      game.__ringNow=now;
+      return now;
+    },
+    rotateSlideTest:(dir,off)=>{
+      const now=game.__ringNow;
+      return checkSlideRotate(dir,now+off);
+    },
+    swipeSlideTest:(dir,startOff,endOff)=>{
+      const now=game.__ringNow;
+      return checkSlideSwipe(dir,now+endOff,now+startOff);
     },
     holdSetup:(off,dur)=>{
       const now=gameClock.now();
