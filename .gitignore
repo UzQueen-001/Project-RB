@@ -1,3 +1,36 @@
 .DS_Store
 # 生成产物：从 outputs/ring-beat.html 抽取的脚本，供 work/ 下测试脚本使用
 work/game.js
+
+# --- macOS 系统文件 ---
+.AppleDouble
+.LSOverride
+.Trashes
+.Spotlight-V100
+
+# --- 隐私 / 凭据：密钥、令牌、配置文件与日志一律不入库 ---
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.secret
+*credential*
+*keychain*
+*token*
+id_rsa
+id_ed25519
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.bak
+*.tmp
+*~
+
+# --- 本地私有内容 ---
+.codex/
+private/
