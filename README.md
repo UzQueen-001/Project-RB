@@ -39,7 +39,6 @@
 ## 文件
 
 - `outputs/ring-beat.html` —— 游戏本体（单文件自包含）
-- `outputs/nova-beat.html` —— 早期轨道式原型（已废弃）
 - `outputs/README.md` —— 输出目录速查
 
 ## 开发

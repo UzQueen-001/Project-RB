@@ -18,7 +18,7 @@ const document={
 };
 const sandbox={console,window:{addEventListener(){}},performance:{now:()=>P},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(cb){lastRafCb=cb;},document,innerWidth:1280,innerHeight:800,devicePixelRatio:2};
 vm.createContext(sandbox);
-vm.runInContext(code,sandbox,{filename:'nova-beat.js'});
+vm.runInContext(code,sandbox,{filename:'ring-beat.js'});
 
 const keydown=docListeners.keydown[0];
 console.log('keydown listeners:',docListeners.keydown.length);

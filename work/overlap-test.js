@@ -9,7 +9,7 @@ const els={};
 const document={querySelector:s=>els[s]||(els[s]=makeEl(s)),querySelectorAll:()=>Array.from({length:8},()=>makeEl('g')),createElement:()=>makeEl('c'),documentElement:{style:{setProperty(){}}},addEventListener(){},hidden:false};
 const sandbox={console,window:{addEventListener(){},__NOVA_TEST__:{}},performance:{now:()=>0},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(){},document,innerWidth:1280,innerHeight:800,devicePixelRatio:2};
 vm.createContext(sandbox);
-vm.runInContext(code,sandbox,{filename:'nova-beat.js'});
+vm.runInContext(code,sandbox,{filename:'ring-beat.js'});
 const T=sandbox.window.__NOVA_TEST__;
 
 let issues=0;

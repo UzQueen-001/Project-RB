@@ -53,7 +53,7 @@ const sandbox={
 };
 
 vm.createContext(sandbox);
-vm.runInContext(code,sandbox,{filename:'nova-beat.js'});
+vm.runInContext(code,sandbox,{filename:'ring-beat.js'});
 
 const keydown=docListeners.keydown[0];
 const pressKey=codeName=>keydown({repeat:false,code:codeName,preventDefault(){}});

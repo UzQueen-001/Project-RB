@@ -37,7 +37,7 @@ const sandbox={
   document, innerWidth:1280, innerHeight:800, devicePixelRatio:2
 };
 vm.createContext(sandbox);
-vm.runInContext(code,sandbox,{filename:'nova-beat.js'});
+vm.runInContext(code,sandbox,{filename:'ring-beat.js'});
 const T=sandbox.window.__NOVA_TEST__;
 
 let issues=0;
